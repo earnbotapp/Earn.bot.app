@@ -1,52 +1,116 @@
-// FILE: server.js (Backend + Bot with MongoDB Atlas)
+// FILE: server.js
 
-// Step 1: Install Dependencies // Run in terminal: // npm init -y // npm install express node-telegram-bot-api cors body-parser mongoose
+const express = require('express');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const TelegramBot = require('node-telegram-bot-api');
+const mongoose = require('mongoose');
 
-const express = require('express'); const bodyParser = require('body-parser'); const cors = require('cors'); const TelegramBot = require('node-telegram-bot-api'); const mongoose = require('mongoose');
+const app = express();
+app.use(cors());
+app.use(bodyParser.json());
 
-const app = express(); app.use(cors()); app.use(bodyParser.json());
-
-// === CONFIG === // ✅ Yahaan aapke real Bot Token aur MongoDB Atlas URI set kar diye gaye hain. // Agar aap security ke liye naya token/password banate ho to sirf yahan update karna hoga.
-
+// === CONFIG ===
 const BOT_TOKEN = "8425796654:AAHYAijN0LFEBlY0ORJxD26mbOXMbr4lXwc";
 const MONGO_URI = "mongodb+srv://Pavan1234:Pavanyadav1%40@cluster0.5r8saoy.mongodb.net/earnapp?retryWrites=true&w=majority&appName=Cluster0";
 
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
-// === MongoDB Setup === mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true }) .then(() => console.log('✅ MongoDB connected')) .catch(err => console.error(err));
+// === MongoDB Setup ===
+mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log('✅ MongoDB connected'))
+  .catch(err => console.error(err));
 
-const userSchema = new mongoose.Schema({ userId: { type: String, required: true, unique: true }, coins: { type: Number, default: 0 }, referredBy: { type: String, default: null } });
+const userSchema = new mongoose.Schema({
+  userId: { type: String, required: true, unique: true },
+  coins: { type: Number, default: 0 },
+  referredBy: { type: String, default: null }
+});
 
 const User = mongoose.model('User', userSchema);
 
-// === Helper === async function getUser(userId) { let user = await User.findOne({ userId }); if (!user) { user = new User({ userId, coins: 0 }); await user.save(); } return user; }
-
-// === Bot Start Command === bot.onText(//start(.*)/, async (msg, match) => { const chatId = msg.chat.id.toString(); const ref = match[1]?.trim();
-
-let user = await User.findOne({ userId: chatId }); if (!user) { user = new User({ userId: chatId, coins: 0, referredBy: ref || null }); await user.save();
-
-if (ref && ref !== chatId) {
-  let refUser = await User.findOne({ userId: ref });
-  if (refUser) {
-    refUser.coins += 50; // referral bonus
-    await refUser.save();
-    bot.sendMessage(ref, `🎉 You earned 50 coins! Your friend joined.`);
+// === Helper ===
+async function getUser(userId) {
+  let user = await User.findOne({ userId });
+  if (!user) {
+    user = new User({ userId, coins: 0 });
+    await user.save();
   }
+  return user;
 }
 
-}
+// === Bot Start Command ===
+bot.onText(/\/start(.*)/, async (msg, match) => {
+  const chatId = msg.chat.id.toString();
+  const ref = match[1]?.trim();
 
-bot.sendMessage(chatId, Welcome! You have ${user.coins} coins., { reply_markup: { inline_keyboard: [ [{ text: "🎁 Daily Reward", callback_data: "daily" }], [{ text: "▶️ Watch Ad", callback_data: "ad" }], [{ text: "🎲 Spin Game", callback_data: "spin" }], [{ text: "👥 Invite Friends", callback_data: "ref" }], [{ text: "💰 My Balance", callback_data: "balance" }] ] } }); });
+  let user = await User.findOne({ userId: chatId });
+  if (!user) {
+    user = new User({ userId: chatId, coins: 0, referredBy: ref || null });
+    await user.save();
 
-// === Callback Queries === bot.on('callback_query', async (query) => { const chatId = query.message.chat.id.toString(); const data = query.data;
+    if (ref && ref !== chatId) {
+      let refUser = await User.findOne({ userId: ref });
+      if (refUser) {
+        refUser.coins += 50; // referral bonus
+        await refUser.save();
+        bot.sendMessage(ref, `🎉 You earned 50 coins! Your friend joined.`);
+      }
+    }
+  }
 
-let user = await getUser(chatId);
+  bot.sendMessage(chatId, `Welcome! You have ${user.coins} coins.`, {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "🎁 Daily Reward", callback_data: "daily" }],
+        [{ text: "▶️ Watch Ad", callback_data: "ad" }],
+        [{ text: "🎲 Spin Game", callback_data: "spin" }],
+        [{ text: "👥 Invite Friends", callback_data: "ref" }],
+        [{ text: "💰 My Balance", callback_data: "balance" }]
+      ]
+    }
+  });
+});
 
-switch(data) { case "daily": user.coins += 10; await user.save(); bot.sendMessage(chatId, ✅ You got 10 daily coins! Balance: ${user.coins}); break; case "ad": user.coins += 5; await user.save(); bot.sendMessage(chatId, 📺 Thanks for watching ad! +5 coins. Balance: ${user.coins}); break; case "spin": const win = Math.floor(Math.random()*20); user.coins += win; await user.save(); bot.sendMessage(chatId, 🎲 You spun and won ${win} coins! Balance: ${user.coins}); break; case "ref": bot.sendMessage(chatId, 👥 Invite friends using this link: https://t.me/YourBotUsername?start=${chatId}); break; case "balance": bot.sendMessage(chatId, 💰 Your balance: ${user.coins} coins.); break; } bot.answerCallbackQuery(query.id); });
+// === Callback Queries ===
+bot.on('callback_query', async (query) => {
+  const chatId = query.message.chat.id.toString();
+  const data = query.data;
 
-// === API for frontend (optional) === app.get('/users', async (req, res) => { const allUsers = await User.find(); res.json(allUsers); });
+  let user = await getUser(chatId);
 
-const PORT = process.env.PORT || 5000; app.listen(PORT, () => console.log(🚀 Server running on port ${PORT}));
+  switch (data) {
+    case "daily":
+      user.coins += 10;
+      await user.save();
+      bot.sendMessage(chatId, `✅ You got 10 daily coins! Balance: ${user.coins}`);
+      break;
+    case "ad":
+      user.coins += 5;
+      await user.save();
+      bot.sendMessage(chatId, `📺 Thanks for watching ad! +5 coins. Balance: ${user.coins}`);
+      break;
+    case "spin":
+      const win = Math.floor(Math.random() * 20);
+      user.coins += win;
+      await user.save();
+      bot.sendMessage(chatId, `🎲 You spun and won ${win} coins! Balance: ${user.coins}`);
+      break;
+    case "ref":
+      bot.sendMessage(chatId, `👥 Invite friends using this link: https://t.me/YourBotUsername?start=${chatId}`);
+      break;
+    case "balance":
+      bot.sendMessage(chatId, `💰 Your balance: ${user.coins} coins.`);
+      break;
+  }
+  bot.answerCallbackQuery(query.id);
+});
 
-// --- END --- // BOT_TOKEN aur MONGO_URI ab set ho gaye hain. // Ab agla step: GitHub par push karo aur Render par deploy karo.
+// === API for frontend (optional) ===
+app.get('/users', async (req, res) => {
+  const allUsers = await User.find();
+  res.json(allUsers);
+});
 
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
