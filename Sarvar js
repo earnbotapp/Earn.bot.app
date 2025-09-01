@@ -11,8 +11,9 @@ app.use(cors());
 app.use(bodyParser.json());
 
 // === CONFIG ===
-const BOT_TOKEN = "8425796654:AAHYAijN0LFEBlY0ORJxD26mbOXMbr4lXwc";
-const MONGO_URI = "mongodb+srv://Pavan1234:Pavanyadav1%40@cluster0.5r8saoy.mongodb.net/earnapp?retryWrites=true&w=majority&appName=Cluster0";
+// ⚠️ Tokens/Secrets को env variables में रखें (Render Dashboard > Environment Variables)
+const BOT_TOKEN = process.env.BOT_TOKEN;
+const MONGO_URI = process.env.MONGO_URI;
 
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
@@ -112,5 +113,6 @@ app.get('/users', async (req, res) => {
   res.json(allUsers);
 });
 
-const PORT = process.env.PORT || 5000;
+// === Server Start ===
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
