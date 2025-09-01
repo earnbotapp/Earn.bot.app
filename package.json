@@ -1,4 +1,3 @@
-
 {
   "name": "telegram-earn-bot",
   "version": "1.0.0",
@@ -12,6 +11,5 @@
     "cors": "^2.8.5",
     "body-parser": "^1.20.2",
     "node-telegram-bot-api": "^0.61.0"
-  },
-  "type": "module"
+  }
 }
