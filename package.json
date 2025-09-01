@@ -1,3 +1,4 @@
+
 {
   "name": "telegram-earn-bot",
   "version": "1.0.0",
@@ -13,3 +14,4 @@
     "node-telegram-bot-api": "^0.61.0"
   },
   "type": "module"
+}
